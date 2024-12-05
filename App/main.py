@@ -10,8 +10,8 @@ from App.Models.sector import Sector
 
 from App.db import Session
 
-def getSector(session: Session, result: int) -> Sector:
-    sector = session.query(Sector).filter(Sector.index == result).first()
+def getSectorData(session: Session, sector_name) -> Sector:
+    sector = session.query(Sector).filter(Sector.nama_sektor == sector_name).first()
     return sector
 
 # import ML Model
@@ -37,15 +37,27 @@ class PredictRequest(BaseModel):
     input_data: List[List[int]]
 @app.post('/predict')
 async def predict(request: PredictRequest):
+    sector_data = np.array([
+        "IT Sector",
+        "Goverment Sector",
+        "Health Sector",
+        "Education Sector",
+        "Sports Sector",
+        "Finance Sector",
+        "Entertainment Sector"
+    ])
+
     input_data = np.array(request.input_data)
     prediction = model.predict([input_data])
-    result = np.argmax(prediction.tolist()[0])
-    sectors = getSector(db_session, result+1)
+    sector = sector_data[np.argmax(prediction)]
+    print(sector)
+    result = getSectorData(db_session, sector_name=sector)
     data = {
-        'prediction': int(result),
+        'prediction': int(np.argmax(prediction)),
         'data' : {
-            'id' : int(sectors.id),
-            'sector': sectors.name,
+            'id' : int(result.id_sektor),
+            'sector': result.nama_sektor,
         }
     }
+
     return JSONResponse(content=data, status_code=200)

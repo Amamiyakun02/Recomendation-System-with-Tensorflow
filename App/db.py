@@ -5,7 +5,7 @@ import dotenv
 import os
 
 dotenv.load_dotenv('.env.local')
-engine = sqlalchemy.create_engine(f"mysql+pymysql://"+os.getenv("DATABASE_URL"))
+engine = sqlalchemy.create_engine(f"mysql+pymysql://"+os.getenv("DATABASE_CLOUD_URL"))
 Base = declarative_base()
 
 Base.metadata.create_all(engine)
