@@ -52,12 +52,41 @@ async def predict(request: PredictRequest):
     sector = sector_data[np.argmax(prediction)]
     print(sector)
     result = getSectorData(db_session, sector_name=sector)
-    data = {
-        'prediction': int(np.argmax(prediction)),
-        'data' : {
-            'id' : int(result.id_sektor),
-            'sector': result.nama_sektor,
-        }
-    }
+    response_data = {
+	"data":{
+		"predict": {
+			"sector" :{
+				"id" : result.id_sektor,
+				"name" : result.nama_sektor,
+				"university" : [
+					{
+						"id" : 1,
+						"name" : "universitas_name_1",
+						"jurusan" : "jurusan_name",
+						"sector" : "sector",
+						"description" : "description"
+					},
+					{
+						"id" : 2,
+						"name" : "universitas_name_2",
+						"jurusan" : "jurusan_name",
+						"sector" : "sector",
+						"description" : "description"
+					},
+					{
+						"id" : 3,
+						"name" : "universitas_name_3",
+						"jurusan" : "jurusan_name",
+						"sector" : "sector",
+						"description" : "description"
+					}
+				]
+			}
+		},
+		"accuracy" : 0.98
+	},
+	"message" : "Successfuly",
+	"error" : False,
+}
 
-    return JSONResponse(content=data, status_code=200)
+    return JSONResponse(content=response_data, status_code=200)
