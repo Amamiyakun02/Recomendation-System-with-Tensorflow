@@ -10,6 +10,15 @@ from App.Models.sector import Sector
 
 from App.db import Session
 
+#d utils function
+def getMultiSector(probability):
+    top_indices = []
+    for _ in range(3):
+        y = np.argmax(np.array(probability))
+        top_indices.append(y)
+        probability[0, y] = 0
+    return top_indices
+
 def getSectorData(session: Session, sector_name) -> Sector:
     sector = session.query(Sector).filter(Sector.nama_sektor == sector_name).first()
     return sector
@@ -35,6 +44,7 @@ db_session = Session()
 
 class PredictRequest(BaseModel):
     input_data: List[List[int]]
+
 @app.post('/predict')
 async def predict(request: PredictRequest):
     sector_data = np.array([
@@ -46,47 +56,48 @@ async def predict(request: PredictRequest):
         "Finance Sector",
         "Entertainment Sector"
     ])
-
     input_data = np.array(request.input_data)
     prediction = model.predict([input_data])
+    print(" sektor tertinggi : ", getMultiSector(prediction))
     sector = sector_data[np.argmax(prediction)]
-    print(sector)
     result = getSectorData(db_session, sector_name=sector)
     response_data = {
-	"data":{
-		"predict": {
-			"sector" :{
-				"id" : result.id_sektor,
-				"name" : result.nama_sektor,
-				"university" : [
-					{
-						"id" : 1,
-						"name" : "universitas_name_1",
-						"jurusan" : "jurusan_name",
-						"sector" : "sector",
-						"description" : "description"
-					},
-					{
-						"id" : 2,
-						"name" : "universitas_name_2",
-						"jurusan" : "jurusan_name",
-						"sector" : "sector",
-						"description" : "description"
-					},
-					{
-						"id" : 3,
-						"name" : "universitas_name_3",
-						"jurusan" : "jurusan_name",
-						"sector" : "sector",
-						"description" : "description"
-					}
-				]
-			}
-		},
-		"accuracy" : 0.98
-	},
-	"message" : "Successfuly",
-	"error" : False,
+    "data":{
+        "predict": {
+            "sector" :[
+                {
+                    "id" : result.id_sektor,
+                    "name" : result.nama_sektor,
+                    "university" : [
+                        {
+                            "id" : 1,
+                            "name" : "universitas_name_1",
+                            "jurusan" : "jurusan_name",
+                            "sector" : "sector",
+                            "description" : "description"
+                        },
+                        {
+                            "id" : 2,
+                            "name" : "universitas_name_2",
+                            "jurusan" : "jurusan_name",
+                            "sector" : "sector",
+                            "description" : "description"
+                        },
+                        {
+                            "id" : 3,
+                            "name" : "universitas_name_3",
+                            "jurusan" : "jurusan_name",
+                            "sector" : "sector",
+                            "description" : "description"
+                        }
+                    ]
+                }
+            ]
+        },
+        "accuracy" : 0.98
+    },
+    "message" : "Successfuly",
+    "error" : False,
 }
 
     return JSONResponse(content=response_data, status_code=200)
