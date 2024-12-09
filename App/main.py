@@ -6,8 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 
-from App.Models.sector import Sector
-
+from App.Models.database_models import Sector, Universitas
 from App.db import Session
 
 #d utils function
@@ -23,6 +22,16 @@ def getSectorData(session: Session, sector_name) -> Sector:
     sector = session.query(Sector).filter(Sector.nama_sektor == sector_name).first()
     return sector
 
+# CONSTANT
+SECTOR = np.array([
+    "IT Sector",
+    "Goverment Sector",
+    "Health Sector",
+    "Education Sector",
+    "Sports Sector",
+    "Finance Sector",
+    "Entertainment Sector"
+])
 # import ML Model
 model_path = "App/ml_model/model.h5"
 model = tf.keras.models.load_model(model_path)
@@ -47,57 +56,102 @@ class PredictRequest(BaseModel):
 
 @app.post('/predict')
 async def predict(request: PredictRequest):
-    sector_data = np.array([
-        "IT Sector",
-        "Goverment Sector",
-        "Health Sector",
-        "Education Sector",
-        "Sports Sector",
-        "Finance Sector",
-        "Entertainment Sector"
-    ])
-    input_data = np.array(request.input_data)
-    prediction = model.predict([input_data])
-    print(" sektor tertinggi : ", getMultiSector(prediction))
-    sector = sector_data[np.argmax(prediction)]
-    result = getSectorData(db_session, sector_name=sector)
-    response_data = {
-    "data":{
-        "predict": {
-            "sector" :[
-                {
-                    "id" : result.id_sektor,
-                    "name" : result.nama_sektor,
-                    "university" : [
-                        {
-                            "id" : 1,
-                            "name" : "universitas_name_1",
-                            "jurusan" : "jurusan_name",
-                            "sector" : "sector",
-                            "description" : "description"
-                        },
-                        {
-                            "id" : 2,
-                            "name" : "universitas_name_2",
-                            "jurusan" : "jurusan_name",
-                            "sector" : "sector",
-                            "description" : "description"
-                        },
-                        {
-                            "id" : 3,
-                            "name" : "universitas_name_3",
-                            "jurusan" : "jurusan_name",
-                            "sector" : "sector",
-                            "description" : "description"
-                        }
-                    ]
-                }
-            ]
-        },
-        "accuracy" : 0.98
-    },
-    "message" : "Successfuly",
-    "error" : False,
-}
 
-    return JSONResponse(content=response_data, status_code=200)
+    try:
+        input_data = np.array(request.input_data)
+        prediction = model.predict([input_data])
+        sector = SECTOR[np.argmax(prediction)]
+        print("Sector : ", sector)
+        result = getSectorData(db_session, sector_name=sector)
+
+        universitas = []
+        for univ in result.universitas:
+            universitas.append({
+                "id": univ.id_universitas,
+                "name": univ.universitas,
+                "jurusan": univ.jurusan,
+                "sector": result.nama_sektor,
+                "website" : univ.url_website,
+                "description": univ.deskripsi,
+            })
+
+        response_data = {
+        "data":{
+            "predict": {
+                "sector" :[
+                    {
+                        "id" : result.id_sektor,
+                        "name" : result.nama_sektor,
+                        "university" : universitas
+                    }
+                ]
+            },
+            "accuracy" : 0.98
+        },
+        "message" : "Successfuly",
+        "error" : False,
+    }
+
+        return JSONResponse(content=response_data, status_code=200)
+
+    except Exception as e:
+        response_data = {
+            "data":{
+                "error" : str(e),
+            },
+            "message" : "Error",
+            "error": True,
+        }
+        return JSONResponse(content=response_data, status_code=500)
+
+@app.post('/multi-predict')
+async def multi_predict(request: PredictRequest):
+
+    try:
+        input_data = np.array(request.input_data)
+        prediction = model.predict([input_data])
+        sectors = []
+        universitas = []
+
+        for sector in getMultiSector(prediction):
+            print(SECTOR[sector])
+            result = getSectorData(db_session, sector_name=SECTOR[sector])
+            print(bool(result.universitas))
+            for univ in result.universitas:
+                universitas.append(
+                    {
+                        "id": univ.id_universitas,
+                        "name": univ.universitas,
+                        "jurusan": univ.jurusan,
+                        "sector": result.nama_sektor,
+                        "website": univ.url_website,
+                        "description": univ.deskripsi,
+                    }
+                )
+            sectors.append({
+                "id": result.id_sektor,
+                "name": result.nama_sektor,
+                "university" : universitas
+            })
+            # else:
+            #     sectors.append({
+            #         "id": result.id_sektor,
+            #         "name": result.nama_sektor,
+            #         "university": []
+            #     })
+        response_data = {
+            "data":{
+                "sector" : sectors,
+            }
+        }
+        return JSONResponse(content=response_data, status_code=200)
+
+    except Exception as e:
+        response_data = {
+            "data":{
+                "error" : str(e),
+            },
+            "message" : "Error",
+            "error": True,
+        }
+        return JSONResponse(content=response_data, status_code=500)
